@@ -13,28 +13,58 @@ int GenerateRandomNumber() { return dist(gen); }
 
 Matrix::Matrix(int rows, int columns) {
   if (columns < 1 || rows < 1) {
-    std::cerr << "....\n"; // TODO add notmal comment
+    std::cerr << "ERROR: columns < 1 || rows < 1.\n";
     return;
   }
 
   rows_ = rows;
   columns_ = columns;
 
-  ptr_ = new int *[rows_];
+  int i = 0;
+  try {
+    counter_ = new uint(1);
 
-  for (int i = 0; i < rows_; ++i) {
-    ptr_[i] = new int[columns_];
+    ptr_ = new int *[rows_];
+    for (; i < rows_; ++i) {
+      ptr_[i] = new int[columns_];
+    }
+  } catch (const std::bad_alloc &e) {
+    std::cerr << "ERROR: unable to allocate memory during construction: "
+              << e.what() << "\n";
+
+    if (counter_) {
+      delete counter_;
+    }
+
+    if (ptr_) {
+      for (; i - 1 >= 0; i--) {
+        delete[] ptr_[i];
+      }
+      delete[] ptr_;
+    }
+
+    ptr_ = nullptr;
+    counter_ = nullptr;
+
+    return;
   }
 
   FillMatrixWithRandNumbers();
 }
 
 Matrix::Matrix(const Matrix &other)
-    : ptr_(other.ptr_), rows_(other.rows_), columns_(other.columns_) {}
+    : ptr_(other.ptr_), counter_(other.counter_), rows_(other.rows_),
+      columns_(other.columns_) {
+  if (other.ptr_) {
+    (*counter_)++;
+  }
+}
 
 Matrix::Matrix(Matrix &&other)
-    : ptr_(other.ptr_), rows_(other.rows_), columns_(other.columns_) {
+    : ptr_(other.ptr_), counter_(other.counter_), rows_(other.rows_),
+      columns_(other.columns_) {
   other.ptr_ = nullptr;
+  other.counter_ = nullptr;
   other.rows_ = 0;
   other.columns_ = 0;
 }
@@ -42,87 +72,68 @@ Matrix::Matrix(Matrix &&other)
 Matrix::~Matrix() { ClearMemory(); }
 
 void Matrix::FillMatrixWithRandNumbers() {
-  if (!ptr_) {
+  if (!ptr_ || !counter_) {
     return;
   }
 
   for (int i = 0; i < rows_; i++) {
     for (int x = 0; x < columns_; x++) {
-      ptr_[i][x] = GenerateRandomNumber();
+      try {
+        ptr_[i][x] = GenerateRandomNumber();
+      } catch (...) {
+        std::cerr << "ERROR: Filling matrix is forbiden since iteration [" << i
+                  << "][" << x << "].\n";
+        break;
+      }
     }
   }
 }
 
 void Matrix::ClearMemory() {
-  if (!ptr_) {
+  if (!ptr_ || !counter_) {
     return;
   }
 
-  for (int i = 0; i < rows_; ++i) {
-    if (ptr_[i]) {
-      delete[] ptr_[i];
-    }
-  }
+  (*counter_)--;
 
-  delete[] ptr_;
-  ptr_ = nullptr;
+  if (*counter_ == 0) {
+    for (int i = 0; i < rows_; ++i) {
+      if (ptr_[i]) {
+        delete[] ptr_[i];
+      }
+    }
+
+    delete[] ptr_;
+    delete counter_;
+    ptr_ = nullptr;
+    counter_ = nullptr;
+  }
 }
 
-Matrix *Matrix::Add(const Matrix &other) const {
-  if (!ptr_ || other.columns_ != columns_ || other.rows_ != rows_) {
-    std::cerr
-        << "Matrix addition forbiden. Other. .....\n"; // TODO add meaningfull
-                                                       // comment
-    return nullptr;
+boost::optional<Matrix> Matrix::Add(const Matrix &other) const {
+  if (!ptr_ || !other.ptr_ || other.columns_ != columns_ ||
+      other.rows_ != rows_) {
+    std::cerr << "ERROR: Matrix addition forbiden.\n";
+    return boost::none;
   }
 
-  Matrix *res_matrix = new Matrix(this->rows_, this->columns_);
+  Matrix res_matrix(this->rows_, this->columns_);
 
-  // check res_matrix чи виділилась пам'ять при new ?????
-  for (int i = 0; i < rows_; i++) {
-    for (int x = 0; x < columns_; x++) {
-      res_matrix->ptr_[i][x] = this->ptr_[i][x] + other.GetValueInField(i, x);
-    }
+  if (!res_matrix.ptr_) {
+    std::cerr << "ERROR: Matrix addition forbiden, unable to allocate memory "
+                 "for res_matrix.\n";
+    return boost::none;
   }
-
-  return res_matrix;
-}
-
-Matrix *Matrix::Distract(const Matrix &other) const {
-  if (!ptr_ || other.columns_ != columns_ || other.rows_ != rows_) {
-    std::cerr
-        << "Matrix distraction forbiden. Other. .....\n"; // TODO add
-                                                          // meaningfull comment
-    return nullptr;
-  }
-
-  Matrix *res_matrix = new Matrix(this->rows_, this->columns_);
 
   for (int i = 0; i < rows_; i++) {
     for (int x = 0; x < columns_; x++) {
-      res_matrix->ptr_[i][x] = this->ptr_[i][x] + other.GetValueInField(i, x);
-    }
-  }
-
-  return res_matrix;
-}
-
-Matrix *Matrix::Multiply(const Matrix &other) const {
-  if (!ptr_ || columns_ != other.rows_ || other.columns_ < 1 || rows_ < 1) {
-    std::cerr
-        << "Matrix multiplying forbiden. Other. .....\n"; // TODO add
-                                                          // meaningfull comment
-    return nullptr;
-  }
-
-  Matrix *res_matrix = new Matrix(rows_, other.columns_);
-
-  for (int i = 0; i < rows_; i++) {
-    for (int j = 0; j < other.columns_; j++) {
-      res_matrix->ptr_[i][j] = 0;
-
-      for (int k = 0; k < columns_; k++) {
-        res_matrix->ptr_[i][j] += ptr_[i][k] * other.ptr_[k][j];
+      try {
+        res_matrix.ptr_[i][x] = this->ptr_[i][x] + other.GetValueInField(i, x);
+      } catch (const std::bad_alloc &e) {
+        std::cerr << "ERROR: Matrix addition forbiden, unable to access "
+                     "memory: this->ptr_["
+                  << i << "][" << x << "].\n";
+        return boost::none;
       }
     }
   }
@@ -130,22 +141,87 @@ Matrix *Matrix::Multiply(const Matrix &other) const {
   return res_matrix;
 }
 
-Matrix *Matrix::Traverse(const Matrix &other) const {}
+boost::optional<Matrix> Matrix::Distract(const Matrix &other) const {
+  if (!ptr_ || !other.ptr_ || other.columns_ != columns_ ||
+      other.rows_ != rows_) {
+    std::cerr << "Matrix distraction forbiden.\n";
+    return boost::none;
+  }
+
+  Matrix res_matrix(this->rows_, this->columns_);
+
+  if (!res_matrix.ptr_) {
+    std::cerr << "ERROR: Matrix addition forbiden, unable to allocate memory "
+                 "for res_matrix.\n";
+    return boost::none;
+  }
+
+  for (int i = 0; i < rows_; i++) {
+    for (int x = 0; x < columns_; x++) {
+      try {
+        res_matrix.ptr_[i][x] = this->ptr_[i][x] + other.GetValueInField(i, x);
+      } catch (const std::bad_alloc &e) {
+        std::cerr << "ERROR: Matrix addition forbiden, unable to access "
+                     "memory: this->ptr_["
+                  << i << "][" << x << "].\n";
+        return boost::none;
+      }
+    }
+  }
+
+  return res_matrix;
+}
+
+boost::optional<Matrix> Matrix::Multiply(const Matrix &other) const {
+  if (!ptr_ || !other.ptr_ || columns_ != other.rows_) {
+    std::cerr << "Matrix multiplying forbiden.\n";
+    return boost::none;
+  }
+
+  Matrix res_matrix(this->rows_, other.columns_);
+
+  if (!res_matrix.ptr_) {
+    std::cerr << "ERROR: Matrix addition forbiden, unable to allocate memory "
+                 "for res_matrix.\n";
+    return boost::none;
+  }
+
+  for (int i = 0; i < rows_; i++) {
+    for (int j = 0; j < other.columns_; j++) {
+      res_matrix.ptr_[i][j] = 0;
+
+      for (int k = 0; k < columns_; k++) {
+        try {
+          res_matrix.ptr_[i][j] += ptr_[i][k] * other.ptr_[k][j];
+        } catch (const std::bad_alloc &e) {
+          std::cerr << "ERROR: Matrix addition forbiden, unable to access "
+                       "memory: this->ptr_["
+                    << i << "][" << k << "] or other.ptr_[" << i << "][" << k
+                    << "].\n";
+          return boost::none;
+        }
+      }
+    }
+  }
+
+  return res_matrix;
+}
+
+boost::optional<Matrix> Matrix::Traverse(const Matrix &other) const {}
 
 int Matrix::GetValueInField(int rows, int columns) const {
-  if (!ptr_ || rows < 0 || rows >= rows_ || columns < 0 ||
-      columns >= columns_) {
-    std::cerr << "...\n"; // TODO add comment
+  if (!ptr_ || !counter_ || rows < 0 || rows >= rows_ || columns < 0 ||
+      columns >= columns_ || !ptr_[rows][columns]) {
+    std::cerr << "ERROR: unable get value of [" << rows << "][" << columns
+              << "].\n";
     return -1;
   }
 
-  auto &returned_value = ptr_[rows][columns];
-  // std::cout << "returned_value is: " << returned_value << "\n";
-  return returned_value;
+  return ptr_[rows][columns];
 }
 
 void Matrix::Print() const {
-  if (!ptr_) {
+  if (!ptr_ || !counter_) {
     std::cout << "Printing cannot be performed\n";
     return;
   }
@@ -175,6 +251,10 @@ Matrix &Matrix::operator=(const Matrix &other) noexcept {
   ptr_ = other.ptr_;
   rows_ = other.rows_;
   columns_ = other.columns_;
+
+  if (ptr_) {
+    (*counter_)++;
+  }
 }
 
 Matrix &Matrix::operator=(Matrix &&other) noexcept {
@@ -185,10 +265,12 @@ Matrix &Matrix::operator=(Matrix &&other) noexcept {
   ClearMemory();
 
   ptr_ = other.ptr_;
+  counter_ = other.counter_;
   rows_ = other.rows_;
   columns_ = other.columns_;
 
   other.ptr_ = nullptr;
+  other.counter_ = nullptr;
   other.rows_ = 0;
   other.columns_ = 0;
 }

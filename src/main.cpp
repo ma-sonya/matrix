@@ -17,7 +17,6 @@ int main() {
   auto matr_distr = matrix.Distract(matrix_2);
   if (matr_distr) {
     matr_distr->Print();
-    delete matr_distr;
   }
 
   Matrix matrix_3(2, 6);
@@ -27,8 +26,6 @@ int main() {
 
   if (matr_mult) {
     matr_mult->Print();
-
-    delete matr_mult;
   }
 
   matrix = matrix;
@@ -37,10 +34,6 @@ int main() {
 
   Matrix copied_m(*matr_addition);
   Matrix moved_m(std::move(matrix_3));
-
-  if (matr_addition) {
-    //    delete matr_addition;  //
-  }
 
   copied_m.Print();
   moved_m.Print();

@@ -1,13 +1,15 @@
+#include <boost/optional.hpp>
+
 class Matrix {
 public:
   Matrix(int rows, int columns);
   Matrix(const Matrix &other);
   Matrix(Matrix &&other);
 
-  Matrix *Add(const Matrix &other) const;
-  Matrix *Distract(const Matrix &other) const;
-  Matrix *Multiply(const Matrix &other) const;
-  Matrix *Traverse(const Matrix &other) const;
+  boost::optional<Matrix> Add(const Matrix &other) const;
+  boost::optional<Matrix> Distract(const Matrix &other) const;
+  boost::optional<Matrix> Multiply(const Matrix &other) const;
+  boost::optional<Matrix> Traverse(const Matrix &other) const;
 
   int GetValueInField(int rows, int columns) const;
   void Print() const;
@@ -20,7 +22,11 @@ public:
 private:
   void FillMatrixWithRandNumbers();
   void ClearMemory();
-  int columns_;
-  int rows_;
+
+  bool IsCorrupted() const;
+
+  int columns_{0};
+  int rows_{0};
   int **ptr_ = nullptr;
+  uint *counter_ = nullptr;
 };
