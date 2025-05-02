@@ -4,6 +4,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(matrix)
 
+find_package(Boost REQUIRED)
+
+include_directories(${Boost_INCLUDE_DIRS})
+
 set(PROJECT_HEADER 
     include/matrix.hpp)
 

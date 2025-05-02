@@ -207,7 +207,35 @@ boost::optional<Matrix> Matrix::Multiply(const Matrix &other) const {
   return res_matrix;
 }
 
-boost::optional<Matrix> Matrix::Traverse(const Matrix &other) const {}
+boost::optional<Matrix> Matrix::Traverse() const {
+  if (!ptr_ || !counter_) {
+    std::cerr << "Matrix traversal forbidden.\n";
+    return boost::none;
+  }
+
+  Matrix res_matrix(columns_, rows_);
+
+  if (!res_matrix.ptr_) {
+    std::cerr << "ERROR: Matrix traversal forbiden, unable to allocate memory "
+                 "for res_matrix.\n";
+    return boost::none;
+  }
+
+  for (int i = 0; i < rows_; ++i) {
+    for (int j = 0; j < columns_; ++j) {
+      try {
+        res_matrix.ptr_[j][i] = ptr_[i][j];
+      } catch (const std::bad_alloc &e) {
+        std::cerr << "ERROR: Matrix traversal forbiden, unable to access "
+                     "memory: this->ptr_["
+                  << i << "][" << j << "].\n";
+        return boost::none;
+      }
+    }
+  }
+
+  return res_matrix;
+}
 
 int Matrix::GetValueInField(int rows, int columns) const {
   if (!ptr_ || !counter_ || rows < 0 || rows >= rows_ || columns < 0 ||

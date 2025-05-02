@@ -38,6 +38,11 @@ int main() {
   copied_m.Print();
   moved_m.Print();
 
+  auto traversed_m = moved_m.Traverse();
+  if (traversed_m) {
+    traversed_m->Print();
+  }
+
   return 0;
 }
 

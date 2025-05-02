@@ -9,7 +9,7 @@ public:
   boost::optional<Matrix> Add(const Matrix &other) const;
   boost::optional<Matrix> Distract(const Matrix &other) const;
   boost::optional<Matrix> Multiply(const Matrix &other) const;
-  boost::optional<Matrix> Traverse(const Matrix &other) const;
+  boost::optional<Matrix> Traverse() const;
 
   int GetValueInField(int rows, int columns) const;
   void Print() const;
@@ -22,8 +22,6 @@ public:
 private:
   void FillMatrixWithRandNumbers();
   void ClearMemory();
-
-  bool IsCorrupted() const;
 
   int columns_{0};
   int rows_{0};
